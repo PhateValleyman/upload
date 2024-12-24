@@ -19,7 +19,6 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 go build -v -x -trimpath -o "upload-linux-arm"
           CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -v -x -trimpath -o "upload-android-arm64"
-          CGO_ENABLED=0 GOOS=linux GOARCH=aarch64 go build -v -x -trimpath -o "upload-linux-aarch64"
       - name: Upload release artifacts
         uses: actions/github-script@v3
         with:
