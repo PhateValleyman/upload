@@ -13,6 +13,7 @@ jobs:
   release:
     name: Upload Release Asset
     runs-on: ubuntu-24.04
+
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
@@ -32,18 +33,26 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const tag = process.env.INPUT_TAG || context.payload.release.tag_name;
+            const fs = require('fs').promises;
             const { repo: { owner, repo } } = context;
+            
+            // Check if the workflow is triggered manually and use the tag input
+            const tag = process.env.INPUT_TAG;  // Manually passed input for workflow_dispatch
 
+            if (!tag) {
+              throw new Error('No tag provided');
+            }
+
+            // Get the release by tag
             const release = await github.repos.getReleaseByTag({
               owner,
               repo,
               tag
             });
 
-            console.log("Release:", release);
+            console.log('Release:', release);
 
-            const fs = require("fs").promises;
+            // Upload assets
             for (let file of await fs.readdir(".")) {
               if (!file.startsWith("upload-")) continue;
               console.log("Uploading", file);
