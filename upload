@@ -1,0 +1,183 @@
+#!/bin/sh
+
+# Version and help flags
+show_help() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Upload a file to a remote server."
+    echo ""
+    echo "Options:"
+    echo "  -d, --device        Specify the device to upload to: tcl, redmi, or server"
+    echo "  -f, --file          Specify the file or folder to upload"
+    echo "  -l, --list          List available devices for upload"
+    echo "  -r, --remote        Specify the remote directory to upload to (default for each device is prefilled)"
+    echo ""
+    echo "  -h, --help          Show this help message"
+    echo "  -v, --version       Show version information"
+    echo ""
+    echo "Example: $0 --device redmi --file ./file.txt --remote /sdcard/"
+    echo "Example: $0 -d server -f ./folder --remote /ffp/home/root/"
+}
+
+show_version() {
+    echo "$0 v1.0"
+    echo "by PhateValleyman"
+    echo "Jonas.Ned@outlook.com"
+}
+list_devices() {
+    echo "Default devices:"
+    echo "      IP        PORT    DEVICE"
+    echo "192.168.1.15    22      redmi"
+    echo "192.168.1.20    22      server"
+    echo "192.168.1.12    8022    tcl"
+    echo ""
+
+    if [ -f "$HOME/.ssh/config" ]; then
+        echo "Devices from ~/.ssh/config:"
+        echo "      IP        PORT    DEVICE"
+
+        # Extract all devices from ~/.ssh/config
+        devices=$(grep -E 'Host ' "$HOME/.ssh/config" | awk '{print $2}')
+
+        # Store seen devices to prevent duplication
+        seen_devices=""
+
+        for device in $devices; do
+            # Get the corresponding HostName (IP) and Port
+            ip=$(grep -A 1 "Host $device" "$HOME/.ssh/config" | grep "HostName" | awk '{print $2}')
+            port=$(grep -A 3 "Host $device" "$HOME/.ssh/config" | grep "Port" | awk '{print $2}')
+            port=${port:-22}  # Default to port 22 if not specified
+
+            # Prevent duplicates (ensure unique devices)
+            if [[ ! "$seen_devices" =~ "$device" ]]; then
+                echo "$ip    $port      $device"
+                seen_devices="$seen_devices $device"
+            fi
+        done
+    else
+        echo "Error: ~/.ssh/config not found."
+    fi
+}
+get_device_info() {
+    local device=$1
+    if [ -f "$HOME/.ssh/config" ]; then
+        # Get device info (HostName and Port)
+        ip=$(grep -A 1 "Host $device" "$HOME/.ssh/config" | grep "HostName" | awk '{print $2}')
+        port=$(grep -A 3 "Host $device" "$HOME/.ssh/config" | grep "Port" | awk '{print $2}')
+        port=${port:-22}  # Default to port 22 if not specified
+
+        if [ -z "$ip" ]; then
+            echo "Error: Device '$device' not found in ~/.ssh/config."
+            exit 1
+        fi
+    else
+        case "$device" in
+            tcl)
+                ip="192.168.1.12"
+                port="8022"
+                ;;
+            redmi)
+                ip="192.168.1.15"
+                port="22"
+                ;;
+            server)
+                ip="192.168.1.20"
+                port="22"
+                ;;
+            *)
+                echo "Error: Invalid device '$device'. Use tcl, redmi, or server."
+                exit 1
+                ;;
+        esac
+    fi
+    echo "$ip $port"
+}
+
+upload() {
+    # Default values
+    file=""
+    remote_dir=""
+    destination=""
+
+    if [ -z "$1" ]; then
+        show_help
+        exit 1
+    fi
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--version)
+                show_version
+                exit 0
+                ;;
+            -d|--device)
+                if [ -z "$2" ]; then
+                    echo "Error: Device not specified after -d/--device."
+                    exit 1
+                fi
+                destination="$2"
+                device_info=$(get_device_info "$destination")
+                ip=$(echo "$device_info" | awk '{print $1}')
+                port=$(echo "$device_info" | awk '{print $2}')
+                remote_dir="/"
+                shift 2
+                ;;
+            -r|--remote)
+                remote_dir="$2"
+                shift 2
+                ;;
+            -f|--file)
+                file="$2"
+                shift 2
+                ;;
+            -l|--list)
+                list_devices
+                exit 0
+                ;;
+            *)
+                echo "Unknown argument: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    if [ -z "$file" ]; then
+        echo "Select file to upload:"
+        read file
+    fi
+
+    if [ -z "$remote_dir" ]; then
+        echo "Select remote folder (default is $remote_dir):"
+        read -ei "$remote_dir" remote_dir
+    fi
+
+    if [ -z "$destination" ]; then
+        echo "Error: No destination specified. Use --device tcl, redmi, or server."
+        exit 1
+    fi
+
+    if [ ! -f "$file" ] && [ ! -d "$file" ]; then
+        echo "Error: File or directory '$file' does not exist."
+        exit 1
+    fi
+
+    if [[ "$remote_dir" == ./.* ]]; then
+        remote_dir=$(realpath "$remote_dir")
+    fi
+
+    echo "Uploading $file to $remote_dir"
+    scp -r -P "$port" -i "$HOME/.ssh/server" "$file" "root@$ip:$remote_dir"
+
+    if [ $? -eq 0 ]; then
+        echo "File uploaded successfully!"
+    else
+        echo "Error: File upload failed."
+        exit 1
+    fi
+}
+
+upload "$@"
