@@ -1,6 +1,8 @@
 on:
   release:
     types: [published]
+  workflow_dispatch: # This enables manual trigger
+
 name: Upload Release Asset
 jobs:
   release:
