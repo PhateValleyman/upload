@@ -1,5 +1,5 @@
  
-name: Go
+name: go
 
 on:
   workflow_dispatch: # Added workflow_dispatch trigger
