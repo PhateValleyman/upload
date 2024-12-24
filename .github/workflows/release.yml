@@ -29,7 +29,7 @@ jobs:
 
             const release = await github.repos.getReleaseByTag({
               owner, repo,
-              tag: process.env.GITHUB_REF.replace("refs/tags/", ""),
+              tag: context.payload.release.tag_name,
             });
             console.log("Release:", { release });
 
