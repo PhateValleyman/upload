@@ -33,12 +33,11 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const core = require('@actions/core');
             const fs = require('fs').promises;
             const { repo: { owner, repo } } = context;
-            
-            // Use core.getInput to fetch the tag
-            const tag = core.getInput('tag');  // Use core.getInput to get the tag input
+
+            // Directly access the tag from the input parameter
+            const tag = '${{ github.event.inputs.tag }}';  // Use GitHub context for tag input
 
             if (!tag) {
               throw new Error('No tag provided');
