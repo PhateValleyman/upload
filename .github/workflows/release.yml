@@ -33,11 +33,12 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const core = require('@actions/core');
             const fs = require('fs').promises;
             const { repo: { owner, repo } } = context;
             
-            // Check if the workflow is triggered manually and use the tag input
-            const tag = process.env.INPUT_TAG;  // Manually passed input for workflow_dispatch
+            // Use core.getInput to fetch the tag
+            const tag = core.getInput('tag');  // Use core.getInput to get the tag input
 
             if (!tag) {
               throw new Error('No tag provided');
